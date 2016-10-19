@@ -1,0 +1,15 @@
+# TOML document for thumberd config
+
+[font]
+
+name = ["IPAGothic"]
+
+[http]
+
+avoid_chunk = false
+
+[image]
+	background_color = "#ffffff00"
+	compression_quality = 90
+	gravity = 2
+	crop_mode = 0
