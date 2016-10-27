@@ -2,6 +2,7 @@
 package thumbnail
 
 import (
+	"errors"
 	"fmt"
 	"github.com/golang/glog"
 	"gopkg.in/gographics/imagick.v2/imagick"
@@ -41,6 +42,7 @@ type ThumbnailParameters struct {
 	HttpAvoidChunk          bool
 	FormatOutput            string
 	CropAreaLimitation      float64
+	MaxPixels               uint
 }
 
 func round(f float64) uint {
@@ -198,6 +200,14 @@ func MakeThumbnailMagick(src io.Reader, dst http.ResponseWriter, params Thumbnai
 	mw.SetFirstIterator()
 	srcWidth := float64(mw.GetImageWidth())
 	srcHeight := float64(mw.GetImageHeight())
+
+
+	pixelNum := mw.GetImageWidth() * mw.GetImageHeight()
+	if uint(pixelNum) > params.MaxPixels {
+		glog.Error("origin image size too big, exceed max pixel num")
+		log.Println("origin image size too big, exceed max pixel num")
+		return errors.New("origin image size too big, exceed max pixel num")
+	}
 
 	var cropX uint = 0
 	var cropY uint = 0
