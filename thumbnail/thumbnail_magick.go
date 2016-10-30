@@ -171,6 +171,14 @@ func isOutputTransparent(inputFormat, outputFormat string) bool {
 }
 
 /*
+ * ImageMagick 初期化
+ */
+var initializeImagick = func() bool {
+	imagick.Initialize()
+	return true
+}()
+
+/*
  * サムネール処理
  */
 func MakeThumbnailMagick(src io.Reader, dst http.ResponseWriter, params ThumbnailParameters) error {
