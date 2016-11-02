@@ -32,7 +32,7 @@ var client http.Client
 var version string
 
 const maxDimension = 65000
-const maxPixels = 10000000
+const maxPixels = 100000000
 const defaultScheme = "http"
 
 var http_stats struct {
@@ -278,6 +278,7 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 		FormatOutput: "",
 		// クロップ面積制限(0 == 制限なし)
 		CropAreaLimitation: 0,
+		MaxPixels: maxPixels,
 	}
 
 	if path[0] != '/' {

@@ -2,6 +2,7 @@
 package thumbnail
 
 import (
+	"errors"
 	"fmt"
 	"github.com/golang/glog"
 	"gopkg.in/gographics/imagick.v2/imagick"
@@ -41,13 +42,14 @@ type ThumbnailParameters struct {
 	HttpAvoidChunk          bool
 	FormatOutput            string
 	CropAreaLimitation      float64
+	MaxPixels               uint
 }
 
 func round(f float64) uint {
 	return uint(math.Floor(f + .5))
 }
 
-func round_int(f float64) int {
+func roundInt(f float64) int {
 	return int(math.Floor(f + .5))
 }
 
@@ -157,11 +159,11 @@ func isFormatTransparent(format string) bool {
 	return false
 }
 
-func isOutputTransparent(input_format, output_format string) bool {
-	if isFormatTransparent(output_format) {
+func isOutputTransparent(inputFormat, outputFormat string) bool {
+	if isFormatTransparent(outputFormat) {
 		return true
-	} else if output_format == "" {
-		if isFormatTransparent(input_format) {
+	} else if outputFormat == "" {
+		if isFormatTransparent(inputFormat) {
 			return true
 		}
 	}
@@ -171,7 +173,7 @@ func isOutputTransparent(input_format, output_format string) bool {
 /*
  * ImageMagick 初期化
  */
-var imagick_initialized = func() bool {
+var initializeImagick = func() bool {
 	imagick.Initialize()
 	return true
 }()
@@ -206,6 +208,14 @@ func MakeThumbnailMagick(src io.Reader, dst http.ResponseWriter, params Thumbnai
 	mw.SetFirstIterator()
 	srcWidth := float64(mw.GetImageWidth())
 	srcHeight := float64(mw.GetImageHeight())
+
+
+	pixelNum := mw.GetImageWidth() * mw.GetImageHeight()
+	if uint(pixelNum) > params.MaxPixels {
+		glog.Error("origin image size too big, exceed max pixel num")
+		log.Println("origin image size too big, exceed max pixel num")
+		return errors.New("origin image size too big, exceed max pixel num")
+	}
 
 	var cropX uint = 0
 	var cropY uint = 0
@@ -343,8 +353,8 @@ func MakeThumbnailMagick(src io.Reader, dst http.ResponseWriter, params Thumbnai
 
 	// JPEG scaling decode hinting
 	if virtualMappedWidth < srcWidth/2 && virtualMappedHeight < srcHeight/2 {
-		jpeg_size := fmt.Sprintf("%dx%d", round_int(virtualMappedWidth*2), round_int(virtualMappedHeight*2))
-		mw.SetOption("jpeg:size", jpeg_size)
+		jpegSize := fmt.Sprintf("%dx%d", roundInt(virtualMappedWidth*2), roundInt(virtualMappedHeight*2))
+		mw.SetOption("jpeg:size", jpegSize)
 	}
 
 	// Decode Image
@@ -386,10 +396,10 @@ func MakeThumbnailMagick(src io.Reader, dst http.ResponseWriter, params Thumbnai
 	} else if params.CropMode == 1 {
 		// クロップとリサイズを同時に行う
 		// fmt.Printf("TransformImage:  cropX:%d cropY:%d cropWidth:%f, cropHeight:%f destWidth:%f, destHeight:%f\n", cropX, cropY, cropWidth, cropHeight, destWidth, destHeight)
-		geo_src := fmt.Sprintf("%dx%d+%d+%d", round(cropWidth), round(cropHeight), cropX, cropY)
-		geo_dest := fmt.Sprintf("%dx%d!", round(destWidth), round(destHeight))
+		geoSrc := fmt.Sprintf("%dx%d+%d+%d", round(cropWidth), round(cropHeight), cropX, cropY)
+		geoDest := fmt.Sprintf("%dx%d!", round(destWidth), round(destHeight))
 		//		fmt.Println("geo_src, geo_dest: ", geo_src, geo_dest)
-		mw2 := mw.TransformImage(geo_src, geo_dest)
+		mw2 := mw.TransformImage(geoSrc, geoDest)
 		defer mw2.Destroy()
 		err := mw2.GetLastError()
 		if err != nil {
@@ -472,8 +482,8 @@ func MakeThumbnailMagick(src io.Reader, dst http.ResponseWriter, params Thumbnai
 			yRatio = getVertical(params.ImageOverlapGravity)
 		}
 
-		iox = round_int(xRatio * (mappedWidth - float64(imageOverlapWidth)))
-		ioy = round_int(yRatio * (mappedHeight - float64(imageOverlapHeight)))
+		iox = roundInt(xRatio * (mappedWidth - float64(imageOverlapWidth)))
+		ioy = roundInt(yRatio * (mappedHeight - float64(imageOverlapHeight)))
 		if (float64(imageOverlapWidth) < srcOverlapWidth/2) &&
 			(float64(imageOverlapHeight) < srcOverlapHeight/2) {
 			jpeg_size := fmt.Sprintf("%dx%d", uint(imageOverlapWidth*2), uint(imageOverlapHeight*2))
