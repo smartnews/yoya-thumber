@@ -5,8 +5,8 @@
 name = ["IPAGothic"]
 
 [http]
-
-avoid_chunk = false
+        avoid_chunk = false
+        user_agent = "yoya-thumber"
 
 [image]
 	background_color = "#ffffff00"
