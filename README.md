@@ -107,6 +107,5 @@ You can customize some behavior of yoya-thumber by editing the config file. Conf
 
 ## Copyright
 
-- Originally, yoya-thumber is a fork of [go-thumber](https://github.com/pixiv/go-thumber). Original part coming from go-thumber is licensed under the 3-clause BSD license.
-- Yoya-thumber is licensed under Apache license 2.0. For more details, see LICENSE file.
-
+- Yoya-thumber is licensed under 3-clause BSD license. For more details, see LICENSE file.
+- Yoya-thumber is a fork of [go-thumber](https://github.com/pixiv/go-thumber). The copyright of the original part is owned by pixiv Inc. (A part of thumberd.go is concerned, but it is difficult to separate it clearly.)
