@@ -185,20 +185,7 @@ func isJPEG(bytes []byte) bool {
 
 func isGIF(bytes []byte) bool {
 	// 0x47 = G, 0x49 = I, 0x46 = F, 0x38 = 8
-	if bytes[0] != 0x47 || bytes[1] != 0x49 || bytes[2] != 0x46 || bytes[3] != 0x38 {
-		return false
-	}
-
-	// 0x39 = 9, 0x37 = 7
-	if bytes[4] != 0x39 && bytes[4] != 0x37 {
-		return false
-	}
-
-	// 0x61 = a
-	if bytes[5] != 0x61 {
-		return false
-	}
-	return true
+	return bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x38
 }
 
 func isPNG(bytes []byte) bool {
