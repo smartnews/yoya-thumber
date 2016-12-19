@@ -170,6 +170,64 @@ func isOutputTransparent(inputFormat, outputFormat string) bool {
 	return false
 }
 
+const (
+	FORMAT_JPEG  = iota
+	FORMAT_GIF   = iota
+	FORMAT_PNG   = iota
+	FORMAT_WEBP  = iota
+	FORMAT_BMP   = iota
+	FORMAT_OTHER = iota
+)
+
+func isJPEG(bytes []byte) bool {
+	return bytes[0] == 0xFF && bytes[1] == 0xD8
+}
+
+func isGIF(bytes []byte) bool {
+	// 0x47 = G, 0x49 = I, 0x46 = F, 0x38 = 8
+	return bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x38
+}
+
+func isPNG(bytes []byte) bool {
+	// 0x50 = P, 0x4E = N, 0x47 = G
+	return bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47
+}
+
+func isWEBP(bytes []byte) bool {
+	// 0x52 = R, 0x49 = I, 0x46 = F
+	if bytes[0] != 0x52 || bytes[1] != 0x49 || bytes[2] != 0x46 || bytes[2] != 0x46 {
+		return false
+	}
+	// 0x57 = W, 0x45 = E, 0x42 = B, 0x50 = P
+	if bytes[8] != 0x57 || bytes[9] != 0x45 || bytes[10] != 0x42 || bytes[11] != 0x50 {
+		return false
+	}
+	return true
+}
+
+func isBMP(bytes []byte) bool {
+	return bytes[0] == 0x42 && bytes[1] == 0x4D
+}
+
+func detectImageFormat(bytes []byte) int {
+	if len(bytes) < 12 {
+		return FORMAT_OTHER
+	}
+
+	if isJPEG(bytes) {
+		return FORMAT_JPEG
+	} else if isGIF(bytes) {
+		return FORMAT_GIF
+	} else if isPNG(bytes) {
+		return FORMAT_PNG
+	} else if isWEBP(bytes) {
+		return FORMAT_WEBP
+	} else if isBMP(bytes) {
+		return FORMAT_BMP
+	}
+	return FORMAT_OTHER
+}
+
 // This function comes from yoya san's gist. For more details, see: https://gist.github.com/yoya/2ae952716dbf70bc749181781eda27a8
 func extractGIF1stFrame(bytes []byte) (int, error) {
 	size := len(bytes)
@@ -293,6 +351,15 @@ func MakeThumbnailMagick(src io.Reader, dst http.ResponseWriter, params Thumbnai
 		glog.Error("Upstream read failed" + err.Error())
 		log.Println("Upstream read failed" + err.Error())
 		return err
+	}
+
+	// FORMAT_OTHER means this file format is not supported.
+	// For security purposes, we are restricting our input image format.
+	if detectImageFormat(bytes) == FORMAT_OTHER {
+		msg := "input image format is not supported"
+		glog.Error(msg)
+		log.Println(msg)
+		return errors.New(msg)
 	}
 
 	err = mw.PingImageBlob(bytes)
