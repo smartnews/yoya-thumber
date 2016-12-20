@@ -4,11 +4,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/golang/glog"
-	"github.com/naoina/toml"
-	"github.com/smartnews/yoya-thumber/thumbnail"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"net/http/fcgi"
 	"net/url"
@@ -20,7 +18,10 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
-	"net"
+
+	"github.com/golang/glog"
+	"github.com/naoina/toml"
+	"github.com/smartnews/yoya-thumber/thumbnail"
 )
 
 var local = flag.String("local", "", "serve as webserver, example: 0.0.0.0:8000")
@@ -58,7 +59,7 @@ type tomlConfig struct {
 	}
 	Http struct {
 		AvoidChunk bool
-		UserAgent string
+		UserAgent  string
 	}
 	Image struct {
 		BackgroundColor    string
@@ -129,7 +130,7 @@ func getScheme(s string) string {
 func urlCanonical(url string, referer string) string {
 	refererScheme := getScheme(referer)
 	if strings.HasPrefix(url, "//") {
-		return refererScheme + ":" + url;
+		return refererScheme + ":" + url
 	}
 
 	words := strings.SplitN(url, ":", 2)
@@ -278,7 +279,7 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 		FormatOutput: "",
 		// クロップ面積制限(0 == 制限なし)
 		CropAreaLimitation: 0,
-		MaxPixels: maxPixels,
+		MaxPixels:          maxPixels,
 	}
 
 	if path[0] != '/' {
