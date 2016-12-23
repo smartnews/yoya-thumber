@@ -37,7 +37,7 @@ $ go install gopkg.in/gographics/imagick.v2/imagick
 - yoya-thumber
 ```
 $ go get github.com/smartnews/yoya-thumber/thumberd
-$ go install github.com/smartnews/yoya-thumber/thumber
+$ go install github.com/smartnews/yoya-thumber/thumberd
 ```
 
 ## Install (Ubuntu)
