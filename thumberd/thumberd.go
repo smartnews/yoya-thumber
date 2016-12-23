@@ -49,7 +49,12 @@ var http_stats struct {
 func init() {
 	flag.Parse()
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	loadToml()
+	if c, err := loadToml(); err != nil {
+		glog.Error(err)
+		panic(err)
+	} else {
+		config.Store(c)
+	}
 	signalSetup()
 }
 
@@ -69,29 +74,27 @@ type tomlConfig struct {
 	}
 }
 
-var config tomlConfig
+var config atomic.Value
 
-func loadToml() {
-	var f *os.File
-	var err error
-	f, err = os.Open("thumberd.toml")
+func loadToml() (*tomlConfig, error) {
+	f, err := os.Open("thumberd.toml")
 	if err != nil {
 		f, err = os.Open("/etc/thumberd.toml")
 		if err != nil {
-			glog.Error("No such file thumberd.toml or /etc/thumberd.toml")
-			panic(err)
+			return nil, errors.New("No such file thumberd.toml or /etc/thumberd.toml")
 		}
 	}
 	defer f.Close()
 	buf, err := ioutil.ReadAll(f)
 	if err != nil {
-		glog.Error("read failed toml")
-		panic(err)
+		return nil, errors.New("read failed toml")
 	}
+
+	var config tomlConfig
 	if err := toml.Unmarshal(buf, &config); err != nil {
-		glog.Error("toml Unmarshal failed ")
-		panic(err)
+		return nil, errors.New("toml Unmarshal failed ")
 	}
+	return &config, nil
 }
 
 func errorServer(w http.ResponseWriter, r *http.Request) {
@@ -223,6 +226,7 @@ func colorHexCanonical(color string) string {
 }
 
 func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
+	c := config.Load().(*tomlConfig)
 
 	startTime := time.Now()
 	defer func() {
@@ -249,8 +253,8 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 		Upscale:     false, // false: 元より大きい場合はリサイズしない
 		ForceAspect: false, // false:アスペクト比は変更しない
 		//jpeg quality
-		Quality:      config.Image.CompressionQuality,
-		Gravity:      config.Image.Gravity,
+		Quality:      c.Image.CompressionQuality,
+		Gravity:      c.Image.Gravity,
 		ImageOverlap: nil, //合成画像のストリーム
 		//上書きする画像の横幅
 		ImageOverlapWidthRatio: 0,
@@ -264,17 +268,17 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 		//アノテーションのマージン
 		TextMargin: 0,
 		//余白をつけるかクロップするか
-		CropMode: config.Image.CropMode,
+		CropMode: c.Image.CropMode,
 		//余白の色指定
-		Background: config.Image.BackgroundColor,
+		Background: c.Image.BackgroundColor,
 		//フォント
-		TextFont: config.Font.Name,
+		TextFont: c.Font.Name,
 		//アノテーションの色
 		TextColor: "",
 		//アノテーションの文字列
 		Text: "",
 		// HTTP Chunk を禁ずる
-		HttpAvoidChunk: config.Http.AvoidChunk,
+		HttpAvoidChunk: c.Http.AvoidChunk,
 		// 出力フォーマット
 		FormatOutput: "",
 		// クロップ面積制限(0 == 制限なし)
@@ -387,7 +391,7 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 			params.ImageUrl, _ = url.QueryUnescape(val)
 		case "io":
 			val, _ := url.QueryUnescape(tup[1])
-			OverlapsrcReader, err := myClientImageGet(val, r.Referer(), config.Http.UserAgent)
+			OverlapsrcReader, err := myClientImageGet(val, r.Referer(), c.Http.UserAgent)
 			if err != nil {
 				glog.Error("Upstream Overlap Image failed : "+err.Error(), http.StatusBadGateway)
 				http.Error(w, "Upstream Overlap Image failed : "+err.Error(), http.StatusBadGateway)
@@ -444,7 +448,7 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 		return
 	}
 
-	srcReader, err := myClientImageGet(params.ImageUrl, r.Referer(), config.Http.UserAgent)
+	srcReader, err := myClientImageGet(params.ImageUrl, r.Referer(), c.Http.UserAgent)
 	if err != nil {
 		message := "Upstream failed\tpath:" + path + "\treferer:" + r.Referer() + "\terror:" + err.Error()
 		glog.Error(message, http.StatusBadGateway)
@@ -520,7 +524,11 @@ func signalSetup() {
 			s := <-signal_chan
 			switch s {
 			case syscall.SIGHUP:
-				loadToml()
+				if c, err := loadToml(); err != nil {
+					glog.Error(err)
+				} else {
+					config.Store(c)
+				}
 			default:
 				exit_chan <- 1
 			}
