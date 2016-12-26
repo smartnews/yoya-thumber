@@ -5,6 +5,7 @@ Yoya-thumber is a dynamic image thumbnailing proxy.
 ## Features
 
 - Support image scaling. Both of scaling up and scaling down. You can specify output width or height.
+- Easy to use. Since it behave as a HTTP proxy, what you should do is only passing an origin image url to the yoya-thumber.
 - Support multiple image formats including JPEG, GIF, PNG. If input image format and output image format are different, yoya-thumber automatically converts the image format.
 - Works as a standalone HTTP server.
 - Possible to superimpose text or another image on an image.
@@ -54,11 +55,13 @@ TBW
  $ thumberd -local localhost:8000
 ```
 
-The HTTP server of thumberd (yoya-thumber) starts up. In this case, we will wait at the port 8000, but only access from localhost will be accepted. If you do not want to restrict the source host, you should do as following.
+The HTTP server of thumberd (yoya-thumber) starts up. In this case, yoya-thumber will wait at the port 8000, but only access from localhost will be accepted. If you do not want to restrict the source host, you should do as following.
 
 ```
  $ thumberd -local 0.0.0.0:8000
 ```
+
+Note that you must put the config file `thumberd.toml` in your current directory or in the `/etc` directory. You can find a sample of config file at: https://github.com/smartnews/yoya-thumber/blob/master/files/thumberd.toml
 
 ### URL example
 
