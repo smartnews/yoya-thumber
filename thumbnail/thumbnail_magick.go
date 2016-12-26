@@ -325,13 +325,9 @@ func extractGIF1stFrame(bytes []byte) (int, error) {
 	return offset, nil
 }
 
-/*
- * ImageMagick 初期化
- */
-var initializeImagick = func() bool {
+func init() {
 	imagick.Initialize()
-	return true
-}()
+}
 
 /*
  * サムネール処理
