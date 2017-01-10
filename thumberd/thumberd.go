@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/fcgi"
+	_ "net/http/pprof"
 	"net/url"
 	"os"
 	"os/signal"
@@ -497,18 +498,7 @@ type Handler struct {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	uri := r.URL.Path
-	//  fmt.Fprint(w, uri)
-	switch uri {
-	case "/server-status":
-		statusServer(w, r)
-	case "/fonts":
-		fontsServer(w, r)
-	case "/favicon.ico":
-		errorServer(w, r)
-	default:
-		thumbServer(w, r, h.sem)
-	}
+	thumbServer(w, r, h.sem)
 }
 
 func signalSetup() {
@@ -537,6 +527,7 @@ func signalSetup() {
 }
 
 func main() {
+	runtime.SetBlockProfileRate(1)
 
 	flag.Parse()
 	if *show_version {
@@ -546,11 +537,17 @@ func main() {
 
 	client.Timeout = time.Duration(*timeout) * time.Second
 
+	http.HandleFunc("/server-status", statusServer)
+	http.HandleFunc("/fonts", fontsServer)
+	http.HandleFunc("/favicon.ico", errorServer)
+
+	handler := new(Handler)
+	handler.sem = make(chan int, runtime.NumCPU())
+	http.Handle("/", handler)
+
 	var err error
 	if *local != "" { // Run as a local web server
-		handler := new(Handler)
-		handler.sem = make(chan int, runtime.NumCPU())
-		err = http.ListenAndServe(*local, handler)
+		err = http.ListenAndServe(*local, nil)
 	} else { // Run as FCGI via standard I/O
 		err = fcgi.Serve(nil, nil)
 	}
