@@ -1,7 +1,7 @@
 FROM ubuntu:14.04
 
-ENV IMAGEMAGICK_VERSION 6.9.6-2
-ENV IMAGEMAGICK_SHA256SUM 328fba877c15dece7ced2e36662230944d0fd7c9990cd994ae848b43e9d51414
+ENV IMAGEMAGICK_VERSION 6.9.6-8
+ENV IMAGEMAGICK_SHA256SUM 39bb2b18183454bd5e0ec6b975e648d08064e44f3ac1b945c9005706e9af3f5d
 
 ENV GOLANG_VERSION 1.5.2
 ENV GOLANG_SHA256SUM b8041ec8a7c0da29dab0b110206794d016165d6d0806976d39b7a99d899aa015
@@ -29,7 +29,8 @@ RUN \
         libgif-dev \
         libwebp-dev \
         libfontconfig1-dev \
-        fonts-ipafont-gothic && \
+        fonts-ipafont-gothic \
+        xz-utils && \
     apt-get clean && \
     rm -rf \
         /var/lib/apt/lists/* \
@@ -40,9 +41,9 @@ RUN \
         /usr/share/doc-base && \
     \
     cd /usr/local/src && \
-    curl -fsSL https://www.imagemagick.org/download/ImageMagick-${IMAGEMAGICK_VERSION}.tar.gz > \
-          ImageMagick-${IMAGEMAGICK_VERSION}.tar.gz && \
-    tar xfz ImageMagick-${IMAGEMAGICK_VERSION}.tar.gz && \
+    curl -fsSL https://www.imagemagick.org/download/releases/ImageMagick-${IMAGEMAGICK_VERSION}.tar.xz > \
+          ImageMagick-${IMAGEMAGICK_VERSION}.tar.xz && \
+    tar xf ImageMagick-${IMAGEMAGICK_VERSION}.tar.xz && \
     cd /usr/local/src/ImageMagick-${IMAGEMAGICK_VERSION} && \
     ./configure \
         '--prefix=/usr/local' \
