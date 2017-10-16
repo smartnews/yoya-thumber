@@ -1,10 +1,8 @@
-FROM ubuntu:14.04
+FROM ubuntu:16.04
 
-ENV IMAGEMAGICK_VERSION 6.9.6-8
-ENV IMAGEMAGICK_SHA256SUM 39bb2b18183454bd5e0ec6b975e648d08064e44f3ac1b945c9005706e9af3f5d
+ENV IMAGEMAGICK_VERSION  6.9.9-15
 
-ENV GOLANG_VERSION 1.5.2
-ENV GOLANG_SHA256SUM b8041ec8a7c0da29dab0b110206794d016165d6d0806976d39b7a99d899aa015
+ENV GOLANG_VERSION 1.9.1
 
 ENV GOPATH=/go
 ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
@@ -41,9 +39,9 @@ RUN \
         /usr/share/doc-base && \
     \
     cd /usr/local/src && \
-    curl -fsSL https://www.imagemagick.org/download/releases/ImageMagick-${IMAGEMAGICK_VERSION}.tar.xz > \
-          ImageMagick-${IMAGEMAGICK_VERSION}.tar.xz && \
-    tar xf ImageMagick-${IMAGEMAGICK_VERSION}.tar.xz && \
+    curl -fsSL https://github.com/ImageMagick/ImageMagick/archive/${IMAGEMAGICK_VERSION}.tar.gz > \
+          ImageMagick-${IMAGEMAGICK_VERSION}.tar.gz && \
+    tar xf ImageMagick-${IMAGEMAGICK_VERSION}.tar.gz && \
     cd /usr/local/src/ImageMagick-${IMAGEMAGICK_VERSION} && \
     ./configure \
         '--prefix=/usr/local' \
@@ -68,7 +66,6 @@ RUN \
     \
     cd /usr/local/src && \
     curl -fsSL https://golang.org/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz -o golang.tar.gz && \
-    echo "${GOLANG_SHA256SUM} golang.tar.gz" | sha256sum -c - && \
     tar -C /usr/local -xzf golang.tar.gz && \
     rm -rf /usr/local/src/* && \
     \
