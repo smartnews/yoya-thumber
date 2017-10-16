@@ -14,16 +14,16 @@ Yoya-thumber is a dynamic image thumbnailing proxy.
 
 ## Dependencies
 
-- Go >= 1.4 (recommended version is 1.7)
-- ImageMagick >= 6.8.9-9
+- Golang (Higher version is better. We tested on Golang 1.9.1, as of Oct 2017.)
+- ImageMagick (We strongly recommend to use 6.9.9-15 or higher.)
 
 ## Install (CentOS 7, Amazon Linux)
 
 -  ImageMagick
 ```
 $ sudo yum install libjpeg-turbo-devel libpng-devel giflib-devel libwebp-devel fontconfig-devel
-$ tar xfz ImageMagick-6.9.3-7.tar.gz
-$ cd ImageMagick-6.9.3-7
+$ tar xfz ImageMagick-6.9.9-15.tar.gz
+$ cd ImageMagick-6.9.9-15
 $ ./configure --disable-openmp --disable-opencl --with-webp --with-fontconfig -without-perl
 $ make
 $ sudo make install
@@ -47,7 +47,10 @@ TBW
 
 ## Install (Docker)
 
-TBW
+```bash
+docker build . -t yoya-thumber
+docker run -p 8000:8000 -it yoya-thumber
+```
 
 ## Usage
 
