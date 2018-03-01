@@ -71,7 +71,8 @@ RUN \
     \
     go get gopkg.in/gographics/imagick.v2/imagick && \
     go get github.com/golang/glog && \
-    go get github.com/naoina/toml
+    go get github.com/naoina/toml && \
+    go get golang.org/x/net/http2
 
 ADD thumberd /go/src/github.com/smartnews/yoya-thumber/thumberd
 ADD thumbnail /go/src/github.com/smartnews/yoya-thumber/thumbnail

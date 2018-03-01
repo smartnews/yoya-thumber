@@ -23,13 +23,12 @@ import (
 	"github.com/golang/glog"
 	"github.com/naoina/toml"
 	"github.com/smartnews/yoya-thumber/thumbnail"
+	"golang.org/x/net/http2"
 )
 
 var local = flag.String("local", "", "serve as webserver, example: 0.0.0.0:8000")
 var timeout = flag.Int("timeout", 3, "timeout for upstream HTTP requests, in seconds")
 var show_version = flag.Bool("version", false, "show version and exit")
-
-var client http.Client
 
 var version string
 
@@ -67,7 +66,8 @@ type tomlConfig struct {
 		AvoidChunk bool
 		UserAgent  string
 	}
-	Image struct {
+	Domain map[string]map[string]interface{}
+	Image  struct {
 		BackgroundColor    string
 		CompressionQuality int
 		Gravity            int
@@ -183,6 +183,7 @@ func myClientImageGet(imageUrl string, referer string, userAgent string) (*http.
 		req.Header.Add("User-Agent", userAgent)
 	}
 
+	client := getHttpClient(u.Host)
 	srcReader, err = client.Do(req)
 	if err != nil {
 		glog.Warning("imageUrl not find " + imageUrl)
@@ -526,6 +527,36 @@ func signalSetup() {
 	}()
 }
 
+func getHttpClient(domain string) http.Client {
+	c := config.Load().(*tomlConfig)
+	domainInfo, ok := c.Domain[domain]
+	if ok {
+		var myTransport http2.Transport
+
+		maxHeaderListSize, ok := domainInfo["MaxHeaderListSize"]
+		if ok {
+			myTransport.MaxHeaderListSize = uint32(maxHeaderListSize.(int64))
+		}
+		disableCompression, ok := domainInfo["DisableCompression"]
+		if ok {
+			myTransport.DisableCompression = disableCompression.(bool)
+		}
+		allowHttp, ok := domainInfo["AllowHTTP"]
+		if ok {
+			myTransport.AllowHTTP = allowHttp.(bool)
+		}
+
+		return http.Client{
+			Timeout:   time.Duration(*timeout) * time.Second,
+			Transport: &myTransport,
+		}
+	}
+
+	return http.Client{
+		Timeout: time.Duration(*timeout) * time.Second,
+	}
+}
+
 func main() {
 	runtime.SetBlockProfileRate(1)
 
@@ -534,8 +565,6 @@ func main() {
 		fmt.Printf("thumberd %s\n", version)
 		return
 	}
-
-	client.Timeout = time.Duration(*timeout) * time.Second
 
 	http.HandleFunc("/server-status", statusServer)
 	http.HandleFunc("/fonts", fontsServer)
