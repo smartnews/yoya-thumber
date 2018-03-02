@@ -1,12 +1,20 @@
 # TOML document for thumberd config
 
 [font]
-
-name = ["IPAGothic"]
+	name = ["IPAGothic"]
 
 [http]
-        avoid_chunk = false
-        user_agent = "yoya-thumber"
+	avoid_chunk = false
+	user_agent = "yoya-thumber"
+
+[domain]
+        [domain."www.example.com"]
+                MaxHeaderListSize = 32768
+                DisableCompression = true
+                AllowHTTP = false
+
+        [domain."www.example.org"]
+                MaxHeaderListSize = 32768
 
 [image]
 	background_color = "#ffffff00"
