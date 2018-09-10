@@ -39,7 +39,7 @@ RUN \
         /usr/share/doc-base && \
     \
     cd /usr/local/src && \
-    curl -fsSL https://github.com/ImageMagick/ImageMagick/archive/${IMAGEMAGICK_VERSION}.tar.gz > \
+    curl -fsSL https://launchpad.net/imagemagick/main/${IMAGEMAGICK_VERSION}/+download/ImageMagick-${IMAGEMAGICK_VERSION}.tar.gz > \
           ImageMagick-${IMAGEMAGICK_VERSION}.tar.gz && \
     tar xf ImageMagick-${IMAGEMAGICK_VERSION}.tar.gz && \
     cd /usr/local/src/ImageMagick-${IMAGEMAGICK_VERSION} && \
