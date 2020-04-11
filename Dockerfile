@@ -23,7 +23,7 @@ RUN \
         curl \
         ca-certificates \
         libjpeg-turbo8-dev \
-        libpng12-dev \
+        libpng-dev \
         libgif-dev \
         libwebp-dev \
         libfontconfig1-dev \
