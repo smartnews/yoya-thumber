@@ -1,4 +1,4 @@
-FROM ubuntu:16.04
+FROM ubuntu:18.04
 
 ENV IMAGEMAGICK_VERSION  6.9.9-15
 
