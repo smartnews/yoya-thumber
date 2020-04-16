@@ -485,7 +485,7 @@ func MakeThumbnailMagick(src io.Reader, dst http.ResponseWriter, params Thumbnai
 				cropWidth = srcWidth
 				cropHeight = (srcWidth / destAspect)
 				// 画像の面積がクロップ面積制限以下のサイズになった場合は下限値に補正する
-				if !largerThanSrc && srcAspect / destAspect < params.CropAreaLimitation {
+				if !largerThanSrc && srcAspect/destAspect < params.CropAreaLimitation {
 					var oldDestHeight = destHeight
 					cropHeight = (srcWidth / srcAspect * params.CropAreaLimitation)
 					destHeight = (destWidth / srcAspect * params.CropAreaLimitation)
@@ -497,7 +497,7 @@ func MakeThumbnailMagick(src io.Reader, dst http.ResponseWriter, params Thumbnai
 				cropWidth = (srcHeight * destAspect)
 				cropHeight = srcHeight
 				// 画像の面積がクロップ面積制限以下のサイズになった場合は下限値に補正する
-				if !largerThanSrc && destAspect / srcAspect < params.CropAreaLimitation {
+				if !largerThanSrc && destAspect/srcAspect < params.CropAreaLimitation {
 					var oldDestWidth = destWidth
 					cropWidth = (srcHeight * srcAspect * params.CropAreaLimitation)
 					destWidth = (destHeight * srcAspect * params.CropAreaLimitation)
