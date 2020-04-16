@@ -155,6 +155,8 @@ func isFormatTransparent(format string) bool {
 		return true
 	case "gif":
 		return true
+	case "heic":
+		return true
 	}
 	return false
 }
@@ -176,6 +178,7 @@ const (
 	FORMAT_PNG   = iota
 	FORMAT_WEBP  = iota
 	FORMAT_BMP   = iota
+	FORMAT_HEIC  = iota
 	FORMAT_OTHER = iota
 )
 
@@ -209,6 +212,30 @@ func isBMP(bytes []byte) bool {
 	return bytes[0] == 0x42 && bytes[1] == 0x4D
 }
 
+func isHEIC(bytes []byte) bool {
+	// too big ftyp box.
+	if bytes[0] != 0 || bytes[1] != 0 || bytes[2] != 0 {
+		return false
+	}
+	// 0x66 = f, 0x74 = t, 0x79 = y, 0x70 = p
+	if bytes[4] != 0x66 || bytes[5] != 0x74 || bytes[6] != 0x79 || bytes[7] != 0x70 {
+		return false
+	}
+	// "heic" = {0x68, 0x65, 0x69, 0x63}
+	if bytes[8] == 0x68 && bytes[9] == 0x65 && bytes[10] == 0x69 && bytes[11] == 0x63 {
+		return true
+	}
+	// "heix" = {0x68, 0x65, 0x69, 0x78}
+	if bytes[8] == 0x68 && bytes[9] == 0x65 && bytes[10] == 0x69 && bytes[11] == 0x78 {
+		return true
+	}
+	// "mif1" = {0x6d, 0x69, 0x66, 0x31}
+	if bytes[8] == 0x6d && bytes[9] == 0x69 && bytes[10] == 0x66 && bytes[11] == 0x31 {
+		return true
+	}
+	return false
+}
+
 func detectImageFormat(bytes []byte) int {
 	if len(bytes) < 12 {
 		return FORMAT_OTHER
@@ -224,6 +251,8 @@ func detectImageFormat(bytes []byte) int {
 		return FORMAT_WEBP
 	} else if isBMP(bytes) {
 		return FORMAT_BMP
+	} else if isHEIC(bytes) {
+		return FORMAT_HEIC
 	}
 	return FORMAT_OTHER
 }
@@ -792,6 +821,8 @@ func MakeThumbnailMagick(src io.Reader, dst http.ResponseWriter, params Thumbnai
 		err = mw.SetImageFormat("png")
 	case "gif":
 		err = mw.SetImageFormat("gif")
+	case "heic", "heif":
+		err = mw.SetImageFormat("heic")
 	case "":
 		// nothing
 	}
