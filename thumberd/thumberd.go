@@ -151,7 +151,7 @@ func urlCanonical(url string, referer string) string {
 	return proto + "://" + strings.TrimLeft(words[1], "/")
 }
 
-func myClientImageGet(imageUrl string, referer string, userAgent string) (*http.Response, error) {
+func myClientImageGet(imageUrl string, referer string, userAgent string) (*http.Response, error, int) {
 	imageUrl = urlCanonical(imageUrl, referer)
 	var srcReader *http.Response
 	var err error
@@ -161,14 +161,14 @@ func myClientImageGet(imageUrl string, referer string, userAgent string) (*http.
 
 	// these codes are referencing net/http/transport.go useProxy method.
 	if err != nil {
-		return nil, err
+		return nil, err, http.StatusBadRequest
 	}
 	if u.Host == "localhost" {
-		return nil, errors.New("localhost is prohibited.")
+		return nil, errors.New("localhost is prohibited."), http.StatusBadRequest
 	}
 	if ip := net.ParseIP(u.Host); ip != nil {
 		if ip.IsLoopback() {
-			return nil, errors.New("loopback address is prohibited.")
+			return nil, errors.New("loopback address is prohibited."), http.StatusBadRequest
 		}
 	}
 
@@ -176,7 +176,7 @@ func myClientImageGet(imageUrl string, referer string, userAgent string) (*http.
 	req.Header.Add("Referer", referer)
 	if err != nil {
 		glog.Error("Failed to create NewRequest.")
-		return nil, err
+		return nil, err, http.StatusBadRequest
 	}
 
 	if userAgent != "" {
@@ -187,14 +187,14 @@ func myClientImageGet(imageUrl string, referer string, userAgent string) (*http.
 	srcReader, err = client.Do(req)
 	if err != nil {
 		glog.Warning("imageUrl not find " + imageUrl)
-		return nil, err
+		return nil, err, srcReader.StatusCode
 	}
 	// 200 以外はエラーにする (302 とかはどうしよう？)
 	if srcReader.StatusCode != http.StatusOK {
 		srcReader.Body.Close()
-		return nil, errors.New("upstream status:" + srcReader.Status)
+		return nil, errors.New("upstream status:" + srcReader.Status), srcReader.StatusCode
 	}
-	return srcReader, nil
+	return srcReader, nil, http.StatusOK
 }
 
 func isHexColor(color string) bool {
@@ -393,10 +393,10 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 			params.ImageUrl, _ = url.QueryUnescape(val)
 		case "io":
 			val, _ := url.QueryUnescape(tup[1])
-			OverlapsrcReader, err := myClientImageGet(val, r.Referer(), c.Http.UserAgent)
+			OverlapsrcReader, err, statusCode := myClientImageGet(val, r.Referer(), c.Http.UserAgent)
 			if err != nil {
-				glog.Error("Upstream Overlap Image failed : "+err.Error(), http.StatusBadGateway)
-				http.Error(w, "Upstream Overlap Image failed : "+err.Error(), http.StatusBadGateway)
+				glog.Error("Upstream Overlap Image failed : "+err.Error(), statusCode)
+				http.Error(w, "Upstream Overlap Image failed : "+err.Error(), statusCode)
 				atomic.AddInt64(&http_stats.upstream_error, 1)
 				return
 			}
@@ -450,11 +450,11 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 		return
 	}
 
-	srcReader, err := myClientImageGet(params.ImageUrl, r.Referer(), c.Http.UserAgent)
+	srcReader, err, statusCode := myClientImageGet(params.ImageUrl, r.Referer(), c.Http.UserAgent)
 	if err != nil {
 		message := "Upstream failed\tpath:" + path + "\treferer:" + r.Referer() + "\terror:" + err.Error()
-		glog.Error(message, http.StatusBadGateway)
-		http.Error(w, message, http.StatusBadGateway)
+		glog.Error(message, statusCode)
+		http.Error(w, message, statusCode)
 		atomic.AddInt64(&http_stats.upstream_error, 1)
 		return
 	}
