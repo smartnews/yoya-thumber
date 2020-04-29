@@ -187,7 +187,7 @@ func myClientImageGet(imageUrl string, referer string, userAgent string) (*http.
 	srcReader, err = client.Do(req)
 	if err != nil {
 		glog.Warning("imageUrl not find " + imageUrl)
-		return nil, err, srcReader.StatusCode
+		return nil, err, http.StatusBadRequest
 	}
 	// 200 以外はエラーにする (302 とかはどうしよう？)
 	if srcReader.StatusCode != http.StatusOK {
