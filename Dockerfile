@@ -1,9 +1,9 @@
-FROM ubuntu:16.04
+FROM ubuntu:18.04
 
 ENV IMAGEMAGICK_VERSION 6.9.11-6
 ENV LIBHEIF_VERSION 1.6.2
 
-ENV GOLANG_VERSION 1.9.1
+ENV GOLANG_VERSION 1.14.1
 
 ENV GOPATH=/go
 ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
@@ -25,7 +25,7 @@ RUN \
         ca-certificates \
         automake  libtool \
         libjpeg-turbo8-dev \
-        libpng12-dev \
+        libpng-dev \
         libgif-dev \
         libwebp-dev \
         libx265-dev  libde265-dev \
