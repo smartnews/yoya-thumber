@@ -155,8 +155,6 @@ func isFormatTransparent(format string) bool {
 		return true
 	case "gif":
 		return true
-	case "heic":
-		return true
 	}
 	return false
 }
