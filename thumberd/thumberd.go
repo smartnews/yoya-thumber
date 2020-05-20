@@ -189,12 +189,19 @@ func myClientImageGet(imageUrl string, referer string, userAgent string) (*http.
 		glog.Warning("imageUrl not find " + imageUrl)
 		return nil, err, http.StatusBadRequest
 	}
-	// 200 以外はエラーにする (302 とかはどうしよう？)
-	if srcReader.StatusCode != http.StatusOK {
-		srcReader.Body.Close()
-		return nil, errors.New("upstream status:" + srcReader.Status), srcReader.StatusCode
+
+	// Only 200 HTTP status indicates successful content getting.
+	if srcReader.StatusCode == http.StatusOK {
+		return srcReader, nil, http.StatusOK // SUCCESS
 	}
-	return srcReader, nil, http.StatusOK
+	srcReader.Body.Close()
+	// In case of 4xx or 5xx, send status to the client unchanged.
+	if srcReader.StatusCode >= http.StatusBadRequest {
+		return nil, errors.New("upstream status:" + srcReader.Status), srcReader.StatusCode // FAILED
+	}
+	// other status 1xx, 2xx(except for 200), 3xx,
+	// are treated as Gateway unsupported errors
+	return nil, errors.New("upstream status:" + srcReader.Status), http.StatusBadGateway // FAILED
 }
 
 func isHexColor(color string) bool {
