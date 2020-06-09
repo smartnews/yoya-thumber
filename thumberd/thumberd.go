@@ -473,6 +473,8 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 		content_type = "image/png"
 	case "gif":
 		content_type = "image/gif"
+	case "heic", "heif":
+		content_type = "image/heic"
 	}
 
 	fmt.Printf("%#v\n", params)
