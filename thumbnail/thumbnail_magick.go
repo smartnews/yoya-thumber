@@ -196,7 +196,7 @@ func isPNG(bytes []byte) bool {
 
 func isWEBP(bytes []byte) bool {
 	// 0x52 = R, 0x49 = I, 0x46 = F
-	if bytes[0] != 0x52 || bytes[1] != 0x49 || bytes[2] != 0x46 || bytes[2] != 0x46 {
+	if bytes[0] != 0x52 || bytes[1] != 0x49 || bytes[2] != 0x46 {
 		return false
 	}
 	// 0x57 = W, 0x45 = E, 0x42 = B, 0x50 = P
