@@ -1,6 +1,7 @@
 FROM ubuntu:18.04
 
 ENV IMAGEMAGICK_VERSION 6.9.11-6
+ENV LIBHEIF_VERSION 1.6.2
 
 ENV GOLANG_VERSION 1.14.1
 
@@ -22,10 +23,12 @@ RUN \
         git \
         curl \
         ca-certificates \
+        automake  libtool \
         libjpeg-turbo8-dev \
         libpng-dev \
         libgif-dev \
         libwebp-dev \
+        libx265-dev  libde265-dev \
         libfontconfig1-dev \
         fonts-ipafont-gothic \
         xz-utils && \
@@ -39,6 +42,21 @@ RUN \
         /usr/share/doc-base && \
     \
     cd /usr/local/src && \
+    curl -fsSL https://github.com//strukturag/libheif/archive/v${LIBHEIF_VERSION}.tar.gz > \
+          libheif-${LIBHEIF_VERSION}.tar.gz && \
+   tar xf libheif-${LIBHEIF_VERSION}.tar.gz && \
+   cd /usr/local/src/libheif-${LIBHEIF_VERSION} && \
+    ./autogen.sh && \
+    ./configure \
+        '--prefix=/usr/local' \
+        'CFLAGS=-O3 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -grecord-gcc-switches -m64 -mtune=generic' \
+        'LDFLAGS=-Wl,-z,relro' \
+        'CXXFLAGS=-O3 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -grecord-gcc-switches -m64 -mtune=generic' && \
+    make && \
+    make install && \
+    rm -rf /usr/local/src/* && \
+    \
+    cd /usr/local/src && \
     curl -fsSL https://github.com/ImageMagick/ImageMagick6/archive/${IMAGEMAGICK_VERSION}.tar.gz > \
           ImageMagick-${IMAGEMAGICK_VERSION}.tar.gz && \
     tar xf ImageMagick-${IMAGEMAGICK_VERSION}.tar.gz && \
@@ -48,6 +66,7 @@ RUN \
         '--disable-openmp' \
         '--disable-opencl' \
         '--with-webp' \
+        '--with-heic' \
         '--with-fontconfig' \
         '--disable-dependency-tracking' \
         '--enable-shared' \
@@ -58,7 +77,7 @@ RUN \
         '--with-ltdl-lib=/usr/lib64' \
         '--without-perl' \
         'CFLAGS=-O3 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -grecord-gcc-switches -m64 -mtune=generic' \
-        'LDFLAGS=-Wl,-z,relro' \
+        'LDFLAGS=-Wl,-z,relro,-rpath,/usr/local/lib' \
         'CXXFLAGS=-O3 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -grecord-gcc-switches -m64 -mtune=generic' && \
     make && \
     make install && \

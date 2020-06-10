@@ -41,6 +41,31 @@ $ go get github.com/smartnews/yoya-thumber/thumberd
 $ go install github.com/smartnews/yoya-thumber/thumberd
 ```
 
+## Install (Mac)
+
+Install ImageMagick via MacPort
+```
+sudo port install ImageMagick
+```
+
+Install Golang and pkg-config via HomeBrew
+```
+brew install Golang
+brew install pkg-config
+```
+
+Install imagick and thumberd
+```
+// set this environment variable or go get will throw an exception.
+export CGO_CFLAGS_ALLOW='-Xpreprocessor'
+
+go get gopkg.in/gographics/imagick.v2/imagick
+go install gopkg.in/gographics/imagick.v2/imagick
+
+go get github.com/smartnews/yoya-thumber/thumberd
+go install github.com/smartnews/yoya-thumber/thumberd
+```
+
 ## Install (Ubuntu)
 
 TBW
@@ -54,6 +79,17 @@ docker run -p 8000:8000 -it yoya-thumber
 
 ## Usage
 
+set GOPATH
+```
+# Edit ~/.bash_profile 
+
+export GOPATH=/Users/$USER/go
+export PATH=$GOPATH/bin:$PATH
+
+# Reload profile : source ~/.bash_profile
+```
+
+Start thumberd
 ```
  $ thumberd -local localhost:8000
 ```

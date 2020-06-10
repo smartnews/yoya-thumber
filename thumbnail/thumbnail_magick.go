@@ -176,6 +176,7 @@ const (
 	FORMAT_PNG   = iota
 	FORMAT_WEBP  = iota
 	FORMAT_BMP   = iota
+	FORMAT_HEIC  = iota
 	FORMAT_OTHER = iota
 )
 
@@ -195,7 +196,7 @@ func isPNG(bytes []byte) bool {
 
 func isWEBP(bytes []byte) bool {
 	// 0x52 = R, 0x49 = I, 0x46 = F
-	if bytes[0] != 0x52 || bytes[1] != 0x49 || bytes[2] != 0x46 || bytes[2] != 0x46 {
+	if bytes[0] != 0x52 || bytes[1] != 0x49 || bytes[2] != 0x46 {
 		return false
 	}
 	// 0x57 = W, 0x45 = E, 0x42 = B, 0x50 = P
@@ -207,6 +208,30 @@ func isWEBP(bytes []byte) bool {
 
 func isBMP(bytes []byte) bool {
 	return bytes[0] == 0x42 && bytes[1] == 0x4D
+}
+
+func isHEIC(bytes []byte) bool {
+	// too big ftyp box.
+	if bytes[0] != 0 || bytes[1] != 0 || bytes[2] != 0 {
+		return false
+	}
+	// 0x66 = f, 0x74 = t, 0x79 = y, 0x70 = p
+	if bytes[4] != 0x66 || bytes[5] != 0x74 || bytes[6] != 0x79 || bytes[7] != 0x70 {
+		return false
+	}
+	// "heic" = {0x68, 0x65, 0x69, 0x63}
+	if bytes[8] == 0x68 && bytes[9] == 0x65 && bytes[10] == 0x69 && bytes[11] == 0x63 {
+		return true
+	}
+	// "heix" = {0x68, 0x65, 0x69, 0x78}
+	if bytes[8] == 0x68 && bytes[9] == 0x65 && bytes[10] == 0x69 && bytes[11] == 0x78 {
+		return true
+	}
+	// "mif1" = {0x6d, 0x69, 0x66, 0x31}
+	if bytes[8] == 0x6d && bytes[9] == 0x69 && bytes[10] == 0x66 && bytes[11] == 0x31 {
+		return true
+	}
+	return false
 }
 
 func detectImageFormat(bytes []byte) int {
@@ -224,6 +249,8 @@ func detectImageFormat(bytes []byte) int {
 		return FORMAT_WEBP
 	} else if isBMP(bytes) {
 		return FORMAT_BMP
+	} else if isHEIC(bytes) {
+		return FORMAT_HEIC
 	}
 	return FORMAT_OTHER
 }
@@ -456,7 +483,7 @@ func MakeThumbnailMagick(src io.Reader, dst http.ResponseWriter, params Thumbnai
 				cropWidth = srcWidth
 				cropHeight = (srcWidth / destAspect)
 				// 画像の面積がクロップ面積制限以下のサイズになった場合は下限値に補正する
-				if !largerThanSrc && srcAspect / destAspect < params.CropAreaLimitation {
+				if !largerThanSrc && srcAspect/destAspect < params.CropAreaLimitation {
 					var oldDestHeight = destHeight
 					cropHeight = (srcWidth / srcAspect * params.CropAreaLimitation)
 					destHeight = (destWidth / srcAspect * params.CropAreaLimitation)
@@ -468,7 +495,7 @@ func MakeThumbnailMagick(src io.Reader, dst http.ResponseWriter, params Thumbnai
 				cropWidth = (srcHeight * destAspect)
 				cropHeight = srcHeight
 				// 画像の面積がクロップ面積制限以下のサイズになった場合は下限値に補正する
-				if !largerThanSrc && destAspect / srcAspect < params.CropAreaLimitation {
+				if !largerThanSrc && destAspect/srcAspect < params.CropAreaLimitation {
 					var oldDestWidth = destWidth
 					cropWidth = (srcHeight * srcAspect * params.CropAreaLimitation)
 					destWidth = (destHeight * srcAspect * params.CropAreaLimitation)
@@ -777,8 +804,13 @@ func MakeThumbnailMagick(src io.Reader, dst http.ResponseWriter, params Thumbnai
 			return err
 		}
 	}
-
+	// JPEG, WebP
 	err = mw.SetImageCompressionQuality(uint(params.Quality))
+	if err != nil {
+		panic(err)
+	}
+	// HEIC
+	err = mw.SetCompressionQuality(uint(params.Quality))
 	if err != nil {
 		panic(err)
 	}
@@ -792,6 +824,8 @@ func MakeThumbnailMagick(src io.Reader, dst http.ResponseWriter, params Thumbnai
 		err = mw.SetImageFormat("png")
 	case "gif":
 		err = mw.SetImageFormat("gif")
+	case "heic", "heif":
+		err = mw.SetImageFormat("heic")
 	case "":
 		// nothing
 	}
