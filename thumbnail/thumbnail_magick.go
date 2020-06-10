@@ -804,8 +804,13 @@ func MakeThumbnailMagick(src io.Reader, dst http.ResponseWriter, params Thumbnai
 			return err
 		}
 	}
-
+	// JPEG, WebP
 	err = mw.SetImageCompressionQuality(uint(params.Quality))
+	if err != nil {
+		panic(err)
+	}
+	// HEIC
+	err = mw.SetCompressionQuality(uint(params.Quality))
 	if err != nil {
 		panic(err)
 	}
