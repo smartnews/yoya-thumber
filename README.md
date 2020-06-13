@@ -66,9 +66,38 @@ go get github.com/smartnews/yoya-thumber/thumberd
 go install github.com/smartnews/yoya-thumber/thumberd
 ```
 
-## Install (Ubuntu)
+## Install (Ubuntu 20.04)
 
-TBW
+-  ImageMagick 6
+
+```
+$ export IMAGEMAGICK_VERSION=6.9.11-18
+$ sudo apt-get install make golang libjpeg-turbo8-dev libpng-dev libgif-dev libwebp-dev libx265-dev libde265-dev libheif-dev libfontconfig1-dev fonts-ipafont-gothic
+$ curl -LO https://github.com/ImageMagick/ImageMagick6/archive/${IMAGEMAGICK_VERSION}.tar.gz
+$ tar xf ${IMAGEMAGICK_VERSION}.tar.gz
+$ cd ImageMagick6-${IMAGEMAGICK_VERSION}
+$ ./configure --prefix=/usr/local --disable-openmp --disable-opencl --with-webp --with-heic --with-fontconfig --disable-dependency-tracking --enable-shared --disable-static --without-perl
+$ make
+$ sudo make install
+```
+
+You might need to add in your env:
+
+```
+export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+```
+
+- GoImagick
+```
+$ go get gopkg.in/gographics/imagick.v2/imagick
+$ go install gopkg.in/gographics/imagick.v2/imagick
+```
+
+- yoya-thumber
+```
+$ go get github.com/smartnews/yoya-thumber/thumberd
+$ go install github.com/smartnews/yoya-thumber/thumberd
+```
 
 ## Install (Docker)
 
