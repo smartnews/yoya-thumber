@@ -739,8 +739,35 @@ func MakeThumbnailMagick(src io.Reader, dst http.ResponseWriter, params Thumbnai
 		return err
 	}
 
+	extentWidth := round(destWidth)
+	extentHeight := round(destHeight)
+	if params.FormatOutput == "heic" || params.FormatOutput == "heif" {
+		if extentWidth%2 == 1 {
+			extentWidth = extentWidth + 1
+		}
+		if extentHeight%2 == 1 {
+			extentHeight = extentHeight + 1
+		}
+	}
+
+	if (extentWidth != round(destWidth)) ||
+		(extentHeight != round(destHeight)) {
+		mw.ExtentImage(extentWidth, extentHeight, 0, 0)
+	}
+
 	//画像出力
 	blob := mw.GetImagesBlob()
+
+	if (extentWidth != round(destWidth)) ||
+		(extentHeight != round(destHeight)) {
+		if params.FormatOutput == "heic" || params.FormatOutput == "heif" {
+			HEIFSetImageSize(blob,
+				uint32(round(destWidth)),
+				uint32(round(destHeight)))
+		}
+
+	}
+
 	if params.HttpAvoidChunk {
 		dst.Header().Set("Content-Length", fmt.Sprintf("%d", len(blob)))
 	}
