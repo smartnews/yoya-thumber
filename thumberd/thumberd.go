@@ -173,10 +173,13 @@ func myClientImageGet(imageUrl string, referer string, userAgent string) (*http.
 	}
 
 	req, err := http.NewRequest("GET", imageUrl, nil)
-	req.Header.Add("Referer", referer)
 	if err != nil {
 		glog.Error("Failed to create NewRequest.")
 		return nil, err, http.StatusBadRequest
+	}
+
+	if referer != "" {
+		req.Header.Add("Referer", referer)
 	}
 
 	if userAgent != "" {
