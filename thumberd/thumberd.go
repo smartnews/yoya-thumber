@@ -495,6 +495,8 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 	// sem is the semaphore to restrict concurrent ImageMagick workers to the number of CPU core
 	sem <- 1
 	err = thumbnail.MakeThumbnailMagick(srcReader.Body, w, params)
+	<-sem
+
 	if err != nil {
 		message := "Magick failed: " + err.Error()
 		glog.Error(message, http.StatusInternalServerError)
@@ -502,7 +504,6 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 		atomic.AddInt64(&http_stats.thumb_error, 1)
 		return
 	}
-	<-sem
 
 	atomic.AddInt64(&http_stats.ok, 1)
 }
