@@ -4,14 +4,15 @@ package thumbnail
 import (
 	"errors"
 	"fmt"
-	"github.com/golang/glog"
-	"gopkg.in/gographics/imagick.v2/imagick"
 	"io"
 	"io/ioutil"
 	"log"
 	"math"
 	"net/http" // XXX
 	"strings"
+
+	"github.com/golang/glog"
+	"gopkg.in/gographics/imagick.v2/imagick"
 )
 
 // ThumbnailParameters configures the thumbnailing process
@@ -368,6 +369,21 @@ func MakeThumbnailMagick(src io.Reader, dst http.ResponseWriter, params Thumbnai
 	defer mw.Destroy()
 	mw.SetResourceLimit(imagick.RESOURCE_THREAD, 1)
 
+	buf := make([]byte, 20)
+	_, err := io.ReadFull(src, buf)
+	if err != nil {
+		return err
+	}
+
+	// FORMAT_OTHER means this file format is not supported.
+	// For security purposes, we are restricting our input image format.
+	if detectImageFormat(buf) == FORMAT_OTHER {
+		msg := "input image format is not supported"
+		glog.Error(msg)
+		log.Println(msg)
+		return errors.New(msg)
+	}
+
 	//画像入力
 	bytes, err := ioutil.ReadAll(src)
 	if err != nil {
@@ -376,14 +392,7 @@ func MakeThumbnailMagick(src io.Reader, dst http.ResponseWriter, params Thumbnai
 		return err
 	}
 
-	// FORMAT_OTHER means this file format is not supported.
-	// For security purposes, we are restricting our input image format.
-	if detectImageFormat(bytes) == FORMAT_OTHER {
-		msg := "input image format is not supported"
-		glog.Error(msg)
-		log.Println(msg)
-		return errors.New(msg)
-	}
+	bytes = append(buf, bytes...)
 
 	err = mw.PingImageBlob(bytes)
 	if err != nil {
