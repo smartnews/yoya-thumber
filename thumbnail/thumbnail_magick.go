@@ -840,6 +840,11 @@ func MakeThumbnailMagick(src io.Reader, dst http.ResponseWriter, params Thumbnai
 	blob := mw.GetImagesBlob()
 
 	if len(blob) == 0 {
+		err = mw.GetLastError()
+		if err != nil {
+			return errors.New("Magic wand fail: " + err.Error())
+		}
+
 		return errors.New(params.FormatOutput + " produce an empty body")
 	}
 
