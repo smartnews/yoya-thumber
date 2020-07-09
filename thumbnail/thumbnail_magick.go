@@ -4,14 +4,15 @@ package thumbnail
 import (
 	"errors"
 	"fmt"
-	"github.com/golang/glog"
-	"gopkg.in/gographics/imagick.v2/imagick"
 	"io"
 	"io/ioutil"
 	"log"
 	"math"
 	"net/http" // XXX
 	"strings"
+
+	"github.com/golang/glog"
+	"gopkg.in/gographics/imagick.v2/imagick"
 )
 
 // ThumbnailParameters configures the thumbnailing process
@@ -838,6 +839,11 @@ func MakeThumbnailMagick(src io.Reader, dst http.ResponseWriter, params Thumbnai
 
 	//画像出力
 	blob := mw.GetImagesBlob()
+
+	if len(blob) == 0 {
+		return errors.New(params.FormatOutput + " produce an empty body")
+	}
+
 	if params.HttpAvoidChunk {
 		dst.Header().Set("Content-Length", fmt.Sprintf("%d", len(blob)))
 	}
