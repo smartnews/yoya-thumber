@@ -796,7 +796,6 @@ func MakeThumbnailMagick(src io.Reader, dst http.ResponseWriter, params Thumbnai
 		err := mw.ExtentImage(round(destWidth), round(destHeight), -int(mappedX), -int(mappedY))
 		if err != nil {
 			panic(err)
-			return err
 		}
 		err = mw.ResetImagePage("") // +repage
 		if err != nil {
