@@ -433,7 +433,7 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 	params.TextColor = colorHexCanonical(params.TextColor)
 
 	// Work around for exception that heic will throw 'Images smaller than 16 pixels are not supported'
-	if params.Width < 100 && (params.FormatOutput == "heic" || params.FormatOutput == "heif") {
+	if params.Width > 0 && params.Width < 100 && (params.FormatOutput == "heic" || params.FormatOutput == "heif") {
 		params.FormatOutput = "jpg"
 	}
 
