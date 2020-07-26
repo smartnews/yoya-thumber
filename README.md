@@ -140,7 +140,7 @@ Note that you must put the config file `thumberd.toml` in your current directory
 - url: upstream image URL (required, should be url-encoded.)
 - w:   thumbnail width (e.g. 300)
 - h:   thumbnail height (e.g. 300)
-- fo:  output format (supported type: jpeg, png, gif, webp)
+- fo:  output format (supported type: jpeg, png, gif, webp, heic)
 - cm:  crop mode: 0:none, 1:crop, 2:margin
 - cal: crop area limitation
 - bg:  background color

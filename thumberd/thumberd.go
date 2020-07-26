@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -173,10 +174,13 @@ func myClientImageGet(imageUrl string, referer string, userAgent string) (*http.
 	}
 
 	req, err := http.NewRequest("GET", imageUrl, nil)
-	req.Header.Add("Referer", referer)
 	if err != nil {
 		glog.Error("Failed to create NewRequest.")
 		return nil, err, http.StatusBadRequest
+	}
+
+	if referer != "" {
+		req.Header.Add("Referer", referer)
 	}
 
 	if userAgent != "" {
@@ -429,6 +433,11 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 	params.Background = colorHexCanonical(params.Background)
 	params.TextColor = colorHexCanonical(params.TextColor)
 
+	// Work around for exception that heic will throw 'Images smaller than 16 pixels are not supported'
+	if params.Width > 0 && params.Width < 100 && (params.FormatOutput == "heic" || params.FormatOutput == "heif") {
+		params.FormatOutput = "jpg"
+	}
+
 	if params.Width > maxDimension {
 		glog.Error("Width (w) invalid", http.StatusBadRequest)
 		http.Error(w, "Width (w) invalid", http.StatusBadRequest)
@@ -489,12 +498,141 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 	w.Header().Set("Content-Type", content_type) //
 	w.Header().Set("Last-Modified", time.Now().UTC().Format(http.TimeFormat))
 
+	imageBlob, err := fetchImageWithCorrectFormat(srcReader.Body)
+	if err != nil {
+		message := "Fetch image failed: " + err.Error()
+		glog.Error(message, http.StatusInternalServerError)
+		http.Error(w, message, http.StatusInternalServerError)
+		atomic.AddInt64(&http_stats.thumb_error, 1)
+		return
+	}
+
 	// sem is the semaphore to restrict concurrent ImageMagick workers to the number of CPU core
 	sem <- 1
-	err = thumbnail.MakeThumbnailMagick(srcReader.Body, w, params)
+	err = thumbnail.MakeThumbnailMagick(imageBlob, w, params)
 	<-sem
 
+	if err != nil {
+		message := "Magick failed: " + err.Error()
+		glog.Error(message, http.StatusInternalServerError)
+		http.Error(w, message, http.StatusInternalServerError)
+		atomic.AddInt64(&http_stats.thumb_error, 1)
+		return
+	}
+
 	atomic.AddInt64(&http_stats.ok, 1)
+}
+
+func fetchImageWithCorrectFormat(src io.Reader) (imageBlob []byte, err error) {
+	buf := make([]byte, 20)
+	_, err = io.ReadFull(src, buf)
+	if err != nil {
+		return nil, err
+	}
+
+	// FORMAT_OTHER means this file format is not supported.
+	// For security purposes, we are restricting our input image format.
+	if detectImageFormat(buf) == FORMAT_OTHER {
+		msg := "input image format is not supported"
+		glog.Error(msg)
+		log.Println(msg)
+		return nil, errors.New(msg)
+	}
+
+	//画像入力
+	bytes, err := ioutil.ReadAll(src)
+	if err != nil {
+		glog.Error("Upstream read failed" + err.Error())
+		log.Println("Upstream read failed" + err.Error())
+		return nil, err
+	}
+
+	return append(buf, bytes...), nil
+}
+
+const (
+	FORMAT_JPEG  = iota
+	FORMAT_GIF   = iota
+	FORMAT_PNG   = iota
+	FORMAT_WEBP  = iota
+	FORMAT_BMP   = iota
+	FORMAT_HEIC  = iota
+	FORMAT_OTHER = iota
+)
+
+func isJPEG(bytes []byte) bool {
+	return bytes[0] == 0xFF && bytes[1] == 0xD8
+}
+
+func isGIF(bytes []byte) bool {
+	// 0x47 = G, 0x49 = I, 0x46 = F, 0x38 = 8
+	return bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x38
+}
+
+func isPNG(bytes []byte) bool {
+	// 0x50 = P, 0x4E = N, 0x47 = G
+	return bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47
+}
+
+func isWEBP(bytes []byte) bool {
+	// "RIFF" = {0x52, 0x49, 0x46, 0x46}
+	if bytes[0] != 0x52 || bytes[1] != 0x49 || bytes[2] != 0x46 || bytes[3] != 0x46 {
+		return false
+	}
+	// 0x57 = W, 0x45 = E, 0x42 = B, 0x50 = P
+	if bytes[8] != 0x57 || bytes[9] != 0x45 || bytes[10] != 0x42 || bytes[11] != 0x50 {
+		return false
+	}
+	return true
+}
+
+func isBMP(bytes []byte) bool {
+	return bytes[0] == 0x42 && bytes[1] == 0x4D
+}
+
+func isHEIC(bytes []byte) bool {
+	// too big ftyp box.
+	if bytes[0] != 0 || bytes[1] != 0 || bytes[2] != 0 {
+		return false
+	}
+	// 0x66 = f, 0x74 = t, 0x79 = y, 0x70 = p
+	if bytes[4] != 0x66 || bytes[5] != 0x74 || bytes[6] != 0x79 || bytes[7] != 0x70 {
+		return false
+	}
+	// "heic" = {0x68, 0x65, 0x69, 0x63}
+	if bytes[8] == 0x68 && bytes[9] == 0x65 && bytes[10] == 0x69 && bytes[11] == 0x63 {
+		return true
+	}
+	// "heix" = {0x68, 0x65, 0x69, 0x78}
+	if bytes[8] == 0x68 && bytes[9] == 0x65 && bytes[10] == 0x69 && bytes[11] == 0x78 {
+		return true
+	}
+	// "mif1" = {0x6d, 0x69, 0x66, 0x31}
+	if bytes[8] == 0x6d && bytes[9] == 0x69 && bytes[10] == 0x66 && bytes[11] == 0x31 {
+		return true
+	}
+	return false
+}
+
+func detectImageFormat(bytes []byte) int {
+	if len(bytes) < 12 {
+		return FORMAT_OTHER
+	}
+
+	if isJPEG(bytes) {
+		return FORMAT_JPEG
+	} else if isGIF(bytes) {
+		return FORMAT_GIF
+	} else if isPNG(bytes) {
+		return FORMAT_PNG
+	} else if isWEBP(bytes) {
+		return FORMAT_WEBP
+	} else if isBMP(bytes) {
+		return FORMAT_BMP
+	} else if isHEIC(bytes) {
+		return FORMAT_HEIC
+	}
+	return FORMAT_OTHER
 }
 
 func fontsServer(w http.ResponseWriter, r *http.Request) {
