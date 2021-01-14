@@ -101,7 +101,7 @@ func loadToml() (*tomlConfig, error) {
 }
 
 func errorServer(w http.ResponseWriter, r *http.Request) {
-	glog.Error("404 Not Found")
+	glog.Error("404 Not Found:" + r.URL.String())
 	http.Error(w, "404 Not Found", http.StatusNotFound)
 }
 
