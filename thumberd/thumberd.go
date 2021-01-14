@@ -65,6 +65,7 @@ type tomlConfig struct {
 	}
 	Http struct {
 		AvoidChunk bool
+		Accept     string
 		UserAgent  string
 	}
 	Domain map[string]map[string]interface{}
@@ -152,7 +153,7 @@ func urlCanonical(url string, referer string) string {
 	return proto + "://" + strings.TrimLeft(words[1], "/")
 }
 
-func myClientImageGet(imageUrl string, referer string, userAgent string) (*http.Response, error, int) {
+func myClientImageGet(imageUrl string, referer string, userAgent string, accept string) (*http.Response, error, int) {
 	imageUrl = urlCanonical(imageUrl, referer)
 	var srcReader *http.Response
 	var err error
@@ -187,10 +188,14 @@ func myClientImageGet(imageUrl string, referer string, userAgent string) (*http.
 		req.Header.Add("User-Agent", userAgent)
 	}
 
+	if accept != "" {
+		req.Header.Add("Accept", accept)
+	}
+
 	client := getHttpClient(u.Host)
 	srcReader, err = client.Do(req)
 	if err != nil {
-		glog.Warning("imageUrl not find " + imageUrl)
+		glog.Warning("error requesting imageUrl:" + imageUrl)
 		return nil, err, http.StatusBadRequest
 	}
 
@@ -404,7 +409,7 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 			params.ImageUrl, _ = url.QueryUnescape(val)
 		case "io":
 			val, _ := url.QueryUnescape(tup[1])
-			OverlapsrcReader, err, statusCode := myClientImageGet(val, r.Referer(), c.Http.UserAgent)
+			OverlapsrcReader, err, statusCode := myClientImageGet(val, r.Referer(), c.Http.UserAgent, c.Http.Accept)
 			if err != nil {
 				glog.Error("Upstream Overlap Image failed : "+err.Error(), statusCode)
 				http.Error(w, "Upstream Overlap Image failed : "+err.Error(), statusCode)
@@ -466,7 +471,7 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 		return
 	}
 
-	srcReader, err, statusCode := myClientImageGet(params.ImageUrl, r.Referer(), c.Http.UserAgent)
+	srcReader, err, statusCode := myClientImageGet(params.ImageUrl, r.Referer(), c.Http.UserAgent, c.Http.Accept)
 	if err != nil {
 		message := "Upstream failed\tpath:" + path + "\treferer:" + r.Referer() + "\terror:" + err.Error()
 		glog.Error(message, statusCode)
