@@ -5,6 +5,7 @@
 
 [http]
 	avoid_chunk = false
+	accept = "image/webp,*/*"
 	user_agent = "yoya-thumber"
 
 [domain]
