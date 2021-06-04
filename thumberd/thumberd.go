@@ -165,10 +165,10 @@ func myClientImageGet(imageUrl string, referer string, userAgent string, accept 
 	if err != nil {
 		return nil, err, http.StatusBadRequest
 	}
-	if u.Host == "localhost" {
+	if u.Hostname() == "localhost" {
 		return nil, errors.New("localhost is prohibited."), http.StatusBadRequest
 	}
-	if ip := net.ParseIP(u.Host); ip != nil {
+	if ip := net.ParseIP(u.Hostname()); ip != nil {
 		if ip.IsLoopback() {
 			return nil, errors.New("loopback address is prohibited."), http.StatusBadRequest
 		}
