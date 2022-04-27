@@ -481,11 +481,31 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 	}
 	defer srcReader.Body.Close()
 
+	fmt.Printf("%#v\n", params)
+
+	w.Header().Set("Last-Modified", time.Now().UTC().Format(http.TimeFormat))
+
+	imageBlob, format, err := fetchImageWithCorrectFormat(srcReader.Body)
+	if err != nil {
+		message := "Fetch image failed: " + err.Error()
+		glog.Error(message, http.StatusInternalServerError)
+		http.Error(w, message, http.StatusInternalServerError)
+		atomic.AddInt64(&http_stats.thumb_error, 1)
+		return
+	}
+
 	content_type := ""
 	switch params.FormatOutput {
 	case "":
-		content_type = srcReader.Header.Get("Content-Type")
-		content_type, _ = url.QueryUnescape(content_type)
+		if supported_content_type, ok := getContentTypeFromFormat()[format]; ok {
+			content_type = supported_content_type
+		} else {
+			message := "the image format not supported"
+			glog.Error(message)
+			http.Error(w, message, http.StatusInternalServerError)
+			atomic.AddInt64(&http_stats.thumb_error, 1)
+			return
+		}
 	case "jpg", "jpeg":
 		content_type = "image/jpeg"
 	case "webp":
@@ -498,19 +518,7 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 		content_type = "image/heic"
 	}
 
-	fmt.Printf("%#v\n", params)
-
-	w.Header().Set("Content-Type", content_type) //
-	w.Header().Set("Last-Modified", time.Now().UTC().Format(http.TimeFormat))
-
-	imageBlob, err := fetchImageWithCorrectFormat(srcReader.Body)
-	if err != nil {
-		message := "Fetch image failed: " + err.Error()
-		glog.Error(message, http.StatusInternalServerError)
-		http.Error(w, message, http.StatusInternalServerError)
-		atomic.AddInt64(&http_stats.thumb_error, 1)
-		return
-	}
+	w.Header().Set("Content-Type", content_type)
 
 	// sem is the semaphore to restrict concurrent ImageMagick workers to the number of CPU core
 	sem <- 1
@@ -528,20 +536,21 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 	atomic.AddInt64(&http_stats.ok, 1)
 }
 
-func fetchImageWithCorrectFormat(src io.Reader) (imageBlob []byte, err error) {
+func fetchImageWithCorrectFormat(src io.Reader) (imageBlob []byte, format int, err error) {
 	buf := make([]byte, 20)
 	_, err = io.ReadFull(src, buf)
 	if err != nil {
-		return nil, err
+		return nil, FORMAT_OTHER, err
 	}
 
 	// FORMAT_OTHER means this file format is not supported.
 	// For security purposes, we are restricting our input image format.
-	if detectImageFormat(buf) == FORMAT_OTHER {
+	format = detectImageFormat(buf)
+	if format == FORMAT_OTHER {
 		msg := "input image format is not supported"
 		glog.Error(msg)
 		log.Println(msg)
-		return nil, errors.New(msg)
+		return nil, format, errors.New(msg)
 	}
 
 	//画像入力
@@ -549,10 +558,10 @@ func fetchImageWithCorrectFormat(src io.Reader) (imageBlob []byte, err error) {
 	if err != nil {
 		glog.Error("Upstream read failed" + err.Error())
 		log.Println("Upstream read failed" + err.Error())
-		return nil, err
+		return nil, format, err
 	}
 
-	return append(buf, bytes...), nil
+	return append(buf, bytes...), format, nil
 }
 
 const (
@@ -564,6 +573,17 @@ const (
 	FORMAT_HEIC  = iota
 	FORMAT_OTHER = iota
 )
+
+func getContentTypeFromFormat() map[int]string {
+	return map[int]string{
+		FORMAT_JPEG: "image/jpeg",
+		FORMAT_GIF:  "image/gif",
+		FORMAT_PNG:  "image/png",
+		FORMAT_WEBP: "image/webp",
+		FORMAT_BMP:  "image/bmp",
+		FORMAT_HEIC: "image/heic",
+	}
+}
 
 func isJPEG(bytes []byte) bool {
 	return bytes[0] == 0xFF && bytes[1] == 0xD8
