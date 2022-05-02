@@ -497,12 +497,13 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 	content_type := ""
 	switch params.FormatOutput {
 	case "":
+		// if not assigned a preferred output image type, use same content type of origin image
 		if supported_content_type, ok := getContentTypeFromFormat()[format]; ok {
 			content_type = supported_content_type
 		} else {
 			message := "the image format not supported"
 			glog.Error(message)
-			http.Error(w, message, http.StatusInternalServerError)
+			http.Error(w, message, http.StatusBadRequest)
 			atomic.AddInt64(&http_stats.thumb_error, 1)
 			return
 		}
