@@ -501,7 +501,7 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 		if supported_content_type, ok := getContentTypeFromFormat()[format]; ok {
 			content_type = supported_content_type
 		} else {
-			message := "the image format not supported"
+			message := "Invalid data retrieved"
 			glog.Error(message)
 			http.Error(w, message, http.StatusBadRequest)
 			atomic.AddInt64(&http_stats.thumb_error, 1)
@@ -548,7 +548,7 @@ func fetchImageWithCorrectFormat(src io.Reader) (imageBlob []byte, format int, e
 	// For security purposes, we are restricting our input image format.
 	format = detectImageFormat(buf)
 	if format == FORMAT_OTHER {
-		msg := "input image format is not supported"
+		msg := "Invalid data retrieved"
 		glog.Error(msg)
 		log.Println(msg)
 		return nil, format, errors.New(msg)
