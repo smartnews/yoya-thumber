@@ -738,9 +738,9 @@ func MakeThumbnailMagick(bytes []byte, dst http.ResponseWriter, params Thumbnail
 	blob, err := mw.GetImagesBlob()
 
 	if err != nil {
-	    glog.Error("Get Images Blob failed: " + err.Error())
-        log.Println("Get Images Blob failed: " + err.Error())
-        return err
+		glog.Error("Get Images Blob failed: " + err.Error())
+        	log.Println("Get Images Blob failed: " + err.Error())
+        	return err
 	}
 
 	if len(blob) == 0 {
