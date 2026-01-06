@@ -326,7 +326,7 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 		}
 		tup := strings.SplitN(arg, "=", 2)
 		if len(tup) != 2 {
-			glog.Error("Arguments must have the form name=value", http.StatusBadRequest)
+			glog.Errorf("Arguments must have the form name=value, got: %q (urlParams: %v, path: %s)", arg, urlParams, path)
 			http.Error(w, "Arguments must have the form name=value", http.StatusBadRequest)
 			atomic.AddInt64(&http_stats.arg_error, 1)
 			return
@@ -474,7 +474,7 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 	srcReader, err, statusCode := myClientImageGet(params.ImageUrl, r.Referer(), c.Http.UserAgent, c.Http.Accept)
 	if err != nil {
 		message := "Upstream failed\tpath:" + path + "\treferer:" + r.Referer() + "\terror:" + err.Error()
-		glog.Error(message, statusCode)
+		glog.Errorf("%s\timage_url:%q\tstatus:%d", message, params.ImageUrl, statusCode)
 		http.Error(w, message, statusCode)
 		atomic.AddInt64(&http_stats.upstream_error, 1)
 		return
