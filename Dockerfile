@@ -1,14 +1,7 @@
 FROM ubuntu:20.04
 
-ENV IMAGEMAGICK_VERSION 6.9.11-43
+ENV IMAGEMAGICK_VERSION 6.9.13-54
 ENV LIBHEIF_VERSION 1.6.2
-
-ENV GOLANG_VERSION 1.14.1
-
-ENV GOPATH=/go
-ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
-ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig/
-ENV CGO_LDFLAGS="-Wl,-rpath=/usr/local/lib"
 
 ENV DEBIAN_FRONTEND noninteractive
 ENV TERM linux
@@ -81,8 +74,17 @@ RUN \
         'CXXFLAGS=-O3 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -grecord-gcc-switches -m64 -mtune=generic' && \
     make && \
     make install && \
-    rm -rf /usr/local/src/* && \
-    \
+    rm -rf /usr/local/src/*
+
+ENV GOLANG_VERSION 1.21.13
+
+ENV GOPATH=/go
+ENV GO111MODULE=off
+ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
+ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig/
+ENV CGO_LDFLAGS="-Wl,-rpath=/usr/local/lib"
+
+RUN \
     cd /usr/local/src && \
     curl -fsSL https://golang.org/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz -o golang.tar.gz && \
     tar -C /usr/local -xzf golang.tar.gz && \
@@ -91,7 +93,15 @@ RUN \
     go get gopkg.in/gographics/imagick.v2/imagick && \
     go get github.com/golang/glog && \
     go get github.com/naoina/toml && \
-    go get golang.org/x/net/http2
+    mkdir -p $GOPATH/src/golang.org/x && \
+    git clone -q https://github.com/golang/text.git $GOPATH/src/golang.org/x/text && \
+    cd $GOPATH/src/golang.org/x/text && \
+    git checkout -q $(git rev-list -1 --before="2021-03-01" HEAD) && \
+    cd /usr/local/src && \
+    git clone -q https://github.com/golang/net.git $GOPATH/src/golang.org/x/net && \
+    cd $GOPATH/src/golang.org/x/net && \
+    git checkout -q $(git rev-list -1 --before="2021-03-01" HEAD) && \
+    go build ./http2
 
 ADD thumberd /go/src/github.com/smartnews/yoya-thumber/thumberd
 ADD thumbnail /go/src/github.com/smartnews/yoya-thumber/thumbnail
