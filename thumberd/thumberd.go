@@ -204,12 +204,17 @@ func myClientImageGet(imageUrl string, referer string, userAgent string, accept 
 		return srcReader, nil, http.StatusOK // SUCCESS
 	}
 	srcReader.Body.Close()
-	// In case of 4xx or 5xx, send status to the client unchanged.
-	if srcReader.StatusCode >= http.StatusBadRequest {
+	// 4xx: pass through unchanged. These are unambiguous (e.g. 404 means the
+	// image genuinely doesn't exist at the source) and worth keeping distinct.
+	if srcReader.StatusCode >= http.StatusBadRequest && srcReader.StatusCode < http.StatusInternalServerError {
 		return nil, errors.New("upstream status:" + srcReader.Status), srcReader.StatusCode // FAILED
 	}
-	// other status 1xx, 2xx(except for 200), 3xx,
-	// are treated as Gateway unsupported errors
+	// Everything else - upstream 5xx, non-standard upstream codes (e.g. 593),
+	// and other unsupported statuses (1xx, 2xx except 200, 3xx) - is normalized
+	// to 502. Mirroring the upstream's raw status here would make an upstream/
+	// origin failure indistinguishable from this service's own 500s in
+	// ALB/CloudWatch metrics. The real upstream status is preserved in the
+	// error message below for debugging.
 	return nil, errors.New("upstream status:" + srcReader.Status), http.StatusBadGateway // FAILED
 }
 
