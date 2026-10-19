@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"errors"
 	"flag"
 	"fmt"
@@ -448,14 +449,14 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 		params.FormatOutput = "jpg"
 	}
 
-	if params.Width > maxDimension {
+	if params.Width < 0 || params.Width > maxDimension {
 		glog.Error("Width (w) invalid", http.StatusBadRequest)
 		http.Error(w, "Width (w) invalid", http.StatusBadRequest)
 		atomic.AddInt64(&http_stats.arg_error, 1)
 		return
 	}
 
-	if params.Height > maxDimension {
+	if params.Height < 0 || params.Height > maxDimension {
 		glog.Error("Height (h) invalid", http.StatusBadRequest)
 		http.Error(w, "Height (h) invalid", http.StatusBadRequest)
 		atomic.AddInt64(&http_stats.arg_error, 1)
@@ -480,7 +481,7 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 	if err != nil {
 		message := "Upstream failed\tpath:" + path + "\treferer:" + r.Referer() + "\terror:" + err.Error()
 		glog.Errorf("%s\timage_url:%q\tstatus:%d", message, params.ImageUrl, statusCode)
-		http.Error(w, message, statusCode)
+		http.Error(w, "Upstream failed", statusCode)
 		atomic.AddInt64(&http_stats.upstream_error, 1)
 		return
 	}
@@ -705,11 +706,63 @@ func signalSetup() {
 	}()
 }
 
+// sharedAddressSpace (RFC 6598) and nat64Prefix (RFC 6052) are not covered by net.IP's helpers.
+var sharedAddressSpace = mustParseCIDR("100.64.0.0/10")
+var nat64Prefix = mustParseCIDR("64:ff9b::/96")
+
+func mustParseCIDR(s string) *net.IPNet {
+	_, n, err := net.ParseCIDR(s)
+	if err != nil {
+		panic(err)
+	}
+	return n
+}
+
+// isPublicAddress reports whether ip may be fetched as an image source. Loopback, private,
+// link-local (cloud metadata) and other non-routable addresses never host a creative.
+func isPublicAddress(ip net.IP) bool {
+	if nat64Prefix.Contains(ip) {
+		ip = net.IP(ip[12:16])
+	}
+	return !(ip.IsLoopback() || ip.IsUnspecified() || ip.IsPrivate() ||
+		ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsInterfaceLocalMulticast() ||
+		ip.IsMulticast() || sharedAddressSpace.Contains(ip))
+}
+
+var upstreamAddressAllowed = isPublicAddress
+
+// upstreamDialer checks the resolved address of every upstream connection, so redirects and
+// DNS rebinding can't reach internal services either.
+var upstreamDialer = &net.Dialer{
+	Timeout:   30 * time.Second,
+	KeepAlive: 30 * time.Second,
+	Control: func(network, address string, _ syscall.RawConn) error {
+		host, _, err := net.SplitHostPort(address)
+		if err != nil {
+			return err
+		}
+		if ip := net.ParseIP(host); ip == nil || !upstreamAddressAllowed(ip) {
+			return fmt.Errorf("upstream address %s is not public", address)
+		}
+		return nil
+	},
+}
+
+var upstreamTransport = func() *http.Transport {
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.DialContext = upstreamDialer.DialContext
+	return t
+}()
+
+func dialUpstreamTLS(network, addr string, cfg *tls.Config) (net.Conn, error) {
+	return tls.DialWithDialer(upstreamDialer, network, addr, cfg)
+}
+
 func getHttpClient(domain string) http.Client {
 	c := config.Load().(*tomlConfig)
 	domainInfo, ok := c.Domain[domain]
 	if ok {
-		var myTransport http2.Transport
+		myTransport := http2.Transport{DialTLS: dialUpstreamTLS}
 
 		maxHeaderListSize, ok := domainInfo["MaxHeaderListSize"]
 		if ok {
@@ -731,7 +784,8 @@ func getHttpClient(domain string) http.Client {
 	}
 
 	return http.Client{
-		Timeout: time.Duration(*timeout) * time.Second,
+		Timeout:   time.Duration(*timeout) * time.Second,
+		Transport: upstreamTransport,
 	}
 }
 

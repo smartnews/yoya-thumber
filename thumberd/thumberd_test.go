@@ -9,7 +9,7 @@ import (
 )
 
 func TestThumbServer(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(thumbServer))
+	ts := httptest.NewServer(&Handler{sem: make(chan int, 1)})
 
 	res, err := http.Get(ts.URL)
 	if err != nil {
@@ -27,7 +27,7 @@ func originImageHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func TestThumbServerWithSuccessCase(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(thumbServer))
+	ts := httptest.NewServer(&Handler{sem: make(chan int, 1)})
 	defer ts.Close()
 
 	origin := httptest.NewServer(http.HandlerFunc(originImageHandler))
@@ -47,7 +47,7 @@ func TestThumbServerWithSuccessCase(t *testing.T) {
 }
 
 func BenchmarkThumbServer(b *testing.B) {
-	ts := httptest.NewServer(http.HandlerFunc(thumbServer))
+	ts := httptest.NewServer(&Handler{sem: make(chan int, 1)})
 	defer ts.Close()
 
 	origin := httptest.NewServer(http.HandlerFunc(originImageHandler))
@@ -68,7 +68,7 @@ func BenchmarkThumbServer(b *testing.B) {
 }
 
 func TestThumbServerWithInvalidParam(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(thumbServer))
+	ts := httptest.NewServer(&Handler{sem: make(chan int, 1)})
 	defer ts.Close()
 
 	res, err := http.Get(ts.URL + "/w=abc,h=100,q=0.9/")

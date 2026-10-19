@@ -494,10 +494,15 @@ func MakeThumbnailMagick(bytes []byte, dst http.ResponseWriter, params Thumbnail
 		//		fmt.Println("geo_src, geo_dest: ", geo_src, geo_dest)
 		mw2 := mw.TransformImage(geoSrc, geoDest)
 		defer mw2.Destroy()
-		err := mw2.GetLastError()
-		if err != nil {
-			glog.Error("TransformImage failed")
-			log.Println("TransformImage failed")
+		// On failure TransformImage returns a NULL wand (GetLastError on it aborts the process)
+		// and leaves the exception on the source wand.
+		if !mw2.IsVerified() {
+			err := mw.GetLastError()
+			if err == nil {
+				err = errors.New("TransformImage returned no image: " + geoSrc + " -> " + geoDest)
+			}
+			glog.Error("TransformImage failed: " + err.Error())
+			log.Println("TransformImage failed: " + err.Error())
 			return err
 		}
 		mw = mw2
