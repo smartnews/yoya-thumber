@@ -493,6 +493,18 @@ func MakeThumbnailMagick(bytes []byte, dst http.ResponseWriter, params Thumbnail
 		geoDest := fmt.Sprintf("%dx%d!", round(destWidth), round(destHeight))
 		//		fmt.Println("geo_src, geo_dest: ", geo_src, geo_dest)
 		mw2 := mw.TransformImage(geoSrc, geoDest)
+		// On failure MagickTransformImage returns NULL and records the exception on the
+		// source wand. Calling GetLastError on the NULL wand trips a C assert (SIGABRT)
+		// that recover() can't catch, so check the wrapped pointer first.
+		if !mw2.IsVerified() {
+			err := mw.GetLastError()
+			if err == nil {
+				err = errors.New("TransformImage failed: " + geoSrc + " -> " + geoDest)
+			}
+			glog.Error("TransformImage failed: " + err.Error())
+			log.Println("TransformImage failed: " + err.Error())
+			return err
+		}
 		defer mw2.Destroy()
 		err := mw2.GetLastError()
 		if err != nil {
