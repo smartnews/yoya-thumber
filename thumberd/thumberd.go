@@ -448,14 +448,14 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 		params.FormatOutput = "jpg"
 	}
 
-	if params.Width > maxDimension {
+	if params.Width < 0 || params.Width > maxDimension {
 		glog.Error("Width (w) invalid", http.StatusBadRequest)
 		http.Error(w, "Width (w) invalid", http.StatusBadRequest)
 		atomic.AddInt64(&http_stats.arg_error, 1)
 		return
 	}
 
-	if params.Height > maxDimension {
+	if params.Height < 0 || params.Height > maxDimension {
 		glog.Error("Height (h) invalid", http.StatusBadRequest)
 		http.Error(w, "Height (h) invalid", http.StatusBadRequest)
 		atomic.AddInt64(&http_stats.arg_error, 1)
@@ -724,14 +724,19 @@ func getHttpClient(domain string) http.Client {
 			myTransport.AllowHTTP = allowHttp.(bool)
 		}
 
+		myTransport.DialTLSContext = dialTLSPublicOnly
+
 		return http.Client{
-			Timeout:   time.Duration(*timeout) * time.Second,
-			Transport: &myTransport,
+			Timeout:       time.Duration(*timeout) * time.Second,
+			Transport:     &myTransport,
+			CheckRedirect: checkRedirect,
 		}
 	}
 
 	return http.Client{
-		Timeout: time.Duration(*timeout) * time.Second,
+		Timeout:       time.Duration(*timeout) * time.Second,
+		Transport:     publicOnlyTransport,
+		CheckRedirect: checkRedirect,
 	}
 }
 
