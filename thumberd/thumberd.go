@@ -310,7 +310,7 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 	}
 
 	if path[0] != '/' {
-		glog.Error("Path should start with /", http.StatusBadRequest)
+		glog.Errorf("Path should start with /: %q", path)
 		http.Error(w, "Path should start with /", http.StatusBadRequest)
 		atomic.AddInt64(&http_stats.arg_error, 1)
 		return
@@ -340,7 +340,7 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 		case "w", "h", "q", "u", "a", "g", "ow", "oh", "og", "tg", "tm", "cm", "igt", "iog":
 			val, err := strconv.Atoi(tup[1])
 			if err != nil {
-				glog.Error("Invalid integer value for "+tup[0], http.StatusBadRequest)
+				glog.Errorf("Invalid integer value for %s: %q", tup[0], tup[1])
 				http.Error(w, "Invalid integer value for "+tup[0], http.StatusBadRequest)
 				atomic.AddInt64(&http_stats.arg_error, 1)
 				return
@@ -370,14 +370,14 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 		case "p", "iow", "ioh", "iox", "ioy", "cal":
 			val, err := strconv.ParseFloat(tup[1], 64)
 			if err != nil {
-				glog.Error("Invalid integer value for "+tup[0], http.StatusBadRequest)
+				glog.Errorf("Invalid float value for %s: %q", tup[0], tup[1])
 				http.Error(w, "Invalid float value for "+tup[0], http.StatusBadRequest)
 				atomic.AddInt64(&http_stats.arg_error, 1)
 				return
 			}
 			if val > 1 {
 				atomic.AddInt64(&http_stats.arg_error, 1)
-				glog.Error("can't use than 1 for "+tup[0], http.StatusBadRequest)
+				glog.Errorf("can't use than 1 for %s: %q", tup[0], tup[1])
 				http.Error(w, "can't use than 1 for "+tup[0], http.StatusBadRequest)
 				return
 			}
@@ -396,7 +396,7 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 		case "ts":
 			val, err := strconv.ParseFloat(tup[1], 64)
 			if err != nil {
-				glog.Error("Invalid integer value for "+tup[0], http.StatusBadRequest)
+				glog.Errorf("Invalid float value for %s: %q", tup[0], tup[1])
 				http.Error(w, "Invalid float value for "+tup[0], http.StatusBadRequest)
 				atomic.AddInt64(&http_stats.arg_error, 1)
 				return
@@ -449,28 +449,28 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 	}
 
 	if params.Width > maxDimension {
-		glog.Error("Width (w) invalid", http.StatusBadRequest)
+		glog.Errorf("Width (w) invalid: %d", params.Width)
 		http.Error(w, "Width (w) invalid", http.StatusBadRequest)
 		atomic.AddInt64(&http_stats.arg_error, 1)
 		return
 	}
 
 	if params.Height > maxDimension {
-		glog.Error("Height (h) invalid", http.StatusBadRequest)
+		glog.Errorf("Height (h) invalid: %d", params.Height)
 		http.Error(w, "Height (h) invalid", http.StatusBadRequest)
 		atomic.AddInt64(&http_stats.arg_error, 1)
 		return
 	}
 
 	if params.Width*params.Height > maxPixels {
-		glog.Error("Image dimensions are insane", http.StatusBadRequest)
+		glog.Errorf("Image dimensions are insane: %dx%d", params.Width, params.Height)
 		http.Error(w, "Image dimensions are insane", http.StatusBadRequest)
 		atomic.AddInt64(&http_stats.arg_error, 1)
 		return
 	}
 
 	if params.Quality > 100 || params.Quality < 0 {
-		glog.Error("Quality must be between 0 and 100", http.StatusBadRequest)
+		glog.Errorf("Quality must be between 0 and 100: %d", params.Quality)
 		http.Error(w, "Quality must be between 0 and 100", http.StatusBadRequest)
 		atomic.AddInt64(&http_stats.arg_error, 1)
 		return
@@ -493,7 +493,12 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 	imageBlob, format, err := fetchImageWithCorrectFormat(srcReader.Body)
 	if err != nil {
 		message := "Fetch image failed: " + err.Error()
-		glog.Error(message, http.StatusInternalServerError)
+		var invalid *invalidDataError
+		if errors.As(err, &invalid) {
+			glog.Errorf("%s\timage_url:%q\tcontent_type:%q\thead:%q", message, params.ImageUrl, srcReader.Header.Get("Content-Type"), invalid.head)
+		} else {
+			glog.Errorf("%s\timage_url:%q", message, params.ImageUrl)
+		}
 		http.Error(w, message, http.StatusInternalServerError)
 		atomic.AddInt64(&http_stats.thumb_error, 1)
 		return
@@ -507,7 +512,7 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 			content_type = supported_content_type
 		} else {
 			message := "Invalid data retrieved"
-			glog.Error(message)
+			glog.Errorf("%s: unsupported output for detected format %d\timage_url:%q", message, format, params.ImageUrl)
 			http.Error(w, message, http.StatusBadRequest)
 			atomic.AddInt64(&http_stats.thumb_error, 1)
 			return
@@ -533,7 +538,7 @@ func thumbServer(w http.ResponseWriter, r *http.Request, sem chan int) {
 
 	if err != nil {
 		message := "Magick failed: " + err.Error()
-		glog.Error(message, http.StatusInternalServerError)
+		glog.Errorf("%s\timage_url:%q", message, params.ImageUrl)
 		http.Error(w, message, http.StatusInternalServerError)
 		atomic.AddInt64(&http_stats.thumb_error, 1)
 		return
@@ -553,21 +558,26 @@ func fetchImageWithCorrectFormat(src io.Reader) (imageBlob []byte, format int, e
 	// For security purposes, we are restricting our input image format.
 	format = detectImageFormat(buf)
 	if format == FORMAT_OTHER {
-		msg := "Invalid data retrieved"
-		glog.Error(msg)
-		log.Println(msg)
-		return nil, format, errors.New(msg)
+		return nil, format, &invalidDataError{head: buf}
 	}
 
 	//画像入力
 	bytes, err := ioutil.ReadAll(src)
 	if err != nil {
-		glog.Error("Upstream read failed" + err.Error())
-		log.Println("Upstream read failed" + err.Error())
-		return nil, format, err
+		return nil, format, fmt.Errorf("upstream read failed: %w", err)
 	}
 
 	return append(buf, bytes...), format, nil
+}
+
+// invalidDataError keeps the first bytes of an unsupported upstream body for logging.
+// They are deliberately left out of Error(), which is sent back to the client.
+type invalidDataError struct {
+	head []byte
+}
+
+func (e *invalidDataError) Error() string {
+	return "Invalid data retrieved"
 }
 
 const (
