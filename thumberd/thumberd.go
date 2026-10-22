@@ -564,7 +564,7 @@ func fetchImageWithCorrectFormat(src io.Reader) (imageBlob []byte, format int, e
 	//画像入力
 	bytes, err := ioutil.ReadAll(src)
 	if err != nil {
-		return nil, format, fmt.Errorf("upstream read failed: %w", err)
+		return nil, format, err
 	}
 
 	return append(buf, bytes...), format, nil
